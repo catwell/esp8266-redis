@@ -27,11 +27,17 @@
 #define STATS_PERIOD 1000
 
 //  your network SSID (name)
-#define WIFI_SSID "RedisLabsGuest"
-#define WIFI_PASS "redisredis"
+#define WIFI_SSID "SOWIFI"
+#define WIFI_PASS "-"
+
+#define REDISHOST "34.199.174.185"
+#define REDISPORT 14658
 
 #include <ESP8266WiFi.h>
 #include "tools.h"
+
+WiFiClient cnx;
+IPAddress redisIP;
 
 /********/
 /* Main */
@@ -71,8 +77,37 @@ void setup() {
 
 unsigned long lastSensorRead = 0;
 
+void read_response() {
+  while (!cnx.available()) { /* busy wait */ };
+  while (cnx.available()) {
+    Serial.print((char)cnx.read());
+  };
+}
+
 void loop() {
   STATS_LOOP
+
+  if (!cnx.connected()) {
+    DEBUG_PRINT("Opening connection to ");
+    DEBUG_PRINT(REDISHOST);
+    DEBUG_PRINT("(");
+    WiFi.hostByName(REDISHOST, redisIP);
+    DEBUG_PRINT("):");
+    DEBUG_PRINT(REDISPORT);
+    DEBUG_PRINT("...");
+    if (cnx.connect(redisIP, REDISPORT)) {
+      DEBUG_PRINT(" YAY :)");
+    }
+    else {
+      DEBUG_PRINT(" NAY :(");
+    }
+  }
+
+  cnx.write("*2\r\n$4\r\nAUTH\r\n$3\r\niot\r\n");
+  read_response();
+
+  cnx.write("*1\r\n$4\r\nPING\r\n");
+  read_response();
 
   if ((millis() - lastSensorRead) > 5000) {
     PROF_START(SensorRead);
