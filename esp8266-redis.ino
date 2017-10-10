@@ -34,9 +34,11 @@
 #define REDISPORT 14658
 
 #include <ESP8266WiFi.h>
+#include "RedisCommand.h"
 #include "tools.h"
 
 WiFiClient cnx;
+RedisCommand_t cmd;
 IPAddress redisIP;
 
 /********/
@@ -106,7 +108,24 @@ void loop() {
   cnx.write("*2\r\n$4\r\nAUTH\r\n$3\r\niot\r\n");
   read_response();
 
-  cnx.write("*1\r\n$4\r\nPING\r\n");
+  DEBUG_PRINT("I SEND LPUSH");
+  rediscommand_init(cmd);
+  rediscommand_add(cmd, "LPUSH");
+  rediscommand_add(cmd, (String("v:") + WiFi.macAddress()).c_str());
+  rediscommand_add(cmd, analogRead(0));
+  char* r = rediscommand_tochar(cmd);
+  cnx.print(r);
+  free(r);
+  read_response();
+
+  DEBUG_PRINT("I SEND PUBLISH");
+  rediscommand_init(cmd);
+  rediscommand_add(cmd, "PUBLISH");
+  rediscommand_add(cmd, "refreshvalues");
+  rediscommand_add(cmd, WiFi.macAddress().c_str());
+  r = rediscommand_tochar(cmd);
+  cnx.print(r);
+  free(r);
   read_response();
 
   if ((millis() - lastSensorRead) > 5000) {
